@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: thebirthdates-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: thebirthdates
+      POSTGRES_USER: birthday
+      POSTGRES_PASSWORD: birthday
+    ports:
+      - "5544:5432"
+    volumes:
+      - thebirthdates-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U birthday -d thebirthdates"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: birthday-api
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: birthday
+      PGPASSWORD: birthday
+      PGDATABASE: thebirthdates
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: birthday-web
+    restart: unless-stopped
+    environment:
+      VITE_API_TARGET: http://backend:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  thebirthdates-data:
